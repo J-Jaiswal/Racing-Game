@@ -151,3 +151,58 @@ button:active {
 #resume-game:hover {
   background-color: #0056b3;
 }
+
+/* Hide mobile controls by default */
+.mobile-controls {
+  display: none;
+  position: fixed;
+  bottom: 80px; /* Adjusted to avoid overlap */
+  width: 100%;
+  display: flex;
+  justify-content: space-around;
+}
+
+/* Only show mobile controls on small screens (phones & tablets) */
+@media screen and (max-width: 768px) {
+  .mobile-controls {
+    display: flex !important; /* Ensures visibility on mobile */
+  }
+
+  .mobile-controls button {
+    display: block !important; /* Makes buttons visible */
+  }
+}
+
+@media screen and (min-width: 769px) {
+  .mobile-controls {
+    display: none !important; /* Ensures removal on desktops */
+  }
+}
+
+.mobile-controls button {
+  width: 40%;
+  padding: 15px;
+  font-size: 18px;
+  border: none;
+  background: #333;
+  color: white;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+/* Ensure Pause button is positioned correctly */
+#pause-game,
+#resume-game {
+  max-width: 200px;
+
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 12px 16px;
+  font-size: 16px;
+  background: #0056b3;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+}

@@ -1,20 +1,23 @@
 import * as THREE from "https://unpkg.com/three@0.136.0/build/three.module.js";
 
+const carMovingSound = new Audio("../sounds/Car_moving.mp3");
+const collisionSound = new Audio("../sounds/Collision.mp3");
+
 // Global Variables
 let scene, camera, renderer;
 let player, floor;
 let obstacles = [];
 let score = 0;
-let obstacleSpeed = 0.1;
+let obstacleSpeed = 0.2;
 let isGameRunning = false;
 let gamePaused = false;
 let obstacleInterval;
+let speedIncreaseInterval;
+let moveLeft = false;
+let moveRight = false;
 
-// Initialize Three.js Setup
 function init() {
   const container = document.getElementById("game-container");
-
-  // Basic scene setup
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x87ceeb);
   camera = new THREE.PerspectiveCamera(
@@ -27,30 +30,90 @@ function init() {
   renderer.setSize(window.innerWidth, window.innerHeight);
   container.appendChild(renderer.domElement);
 
-  // Add ambient light
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
   scene.add(ambientLight);
 
-  // Create elements in the scene
   createPlayer();
   createFloor();
-  animate(); // Start the animation loop
+  addMobileControls();
+  animate();
 }
 
-// Create the Player Car
 function createPlayer() {
-  const geometry = new THREE.BoxGeometry(1, 1, 2);
-  const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-  player = new THREE.Mesh(geometry, material);
-  player.position.set(0, 1, 0);
+  const carGroup = new THREE.Group();
+  // Car Body
+  const bodyGeometry = new THREE.BoxGeometry(1.5, 0.5, 3);
+  const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+  const carBody = new THREE.Mesh(bodyGeometry, bodyMaterial);
+  carBody.position.y = 0.5;
+  carGroup.add(carBody);
+
+  // Roof
+  const roofGeometry = new THREE.BoxGeometry(1, 0.3, 1.5);
+  const roofMaterial = new THREE.MeshStandardMaterial({ color: 0x880000 });
+  const carRoof = new THREE.Mesh(roofGeometry, roofMaterial);
+  carRoof.position.set(0, 0.8, 0);
+  carGroup.add(carRoof);
+
+  // Windows
+  const windowGeometry = new THREE.BoxGeometry(0.9, 0.2, 1.4);
+  const windowMaterial = new THREE.MeshStandardMaterial({
+    color: 0x000000,
+    transparent: true,
+    opacity: 0.5,
+  });
+  const carWindows = new THREE.Mesh(windowGeometry, windowMaterial);
+  carWindows.position.set(0, 0.85, 0);
+  carGroup.add(carWindows);
+
+  // Headlights
+  const lightGeometry = new THREE.BoxGeometry(0.2, 0.1, 0.1);
+  const lightMaterial = new THREE.MeshStandardMaterial({
+    color: 0xffff00,
+    emissive: 0xffff00,
+  });
+  const headlight1 = new THREE.Mesh(lightGeometry, lightMaterial);
+  const headlight2 = new THREE.Mesh(lightGeometry, lightMaterial);
+  headlight1.position.set(0.6, 0.5, 1.5);
+  headlight2.position.set(-0.6, 0.5, 1.5);
+  carGroup.add(headlight1, headlight2);
+
+  // Side Mirrors
+  const mirrorGeometry = new THREE.BoxGeometry(0.2, 0.1, 0.1);
+  const mirrorMaterial = new THREE.MeshStandardMaterial({ color: 0x000000 });
+  const mirror1 = new THREE.Mesh(mirrorGeometry, mirrorMaterial);
+  const mirror2 = new THREE.Mesh(mirrorGeometry, mirrorMaterial);
+  mirror1.position.set(0.85, 0.75, 0.6);
+  mirror2.position.set(-0.85, 0.75, 0.6);
+  carGroup.add(mirror1, mirror2);
+
+  // Wheels
+  const wheelGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.2, 12);
+  const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x000000 });
+
+  const wheelPositions = [
+    [-0.7, 0.2, 1.2],
+    [0.7, 0.2, 1.2],
+    [-0.7, 0.2, -1.2],
+    [0.7, 0.2, -1.2],
+  ];
+
+  wheelPositions.forEach(([x, y, z]) => {
+    const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+    wheel.rotation.z = Math.PI / 2;
+    wheel.position.set(x, y, z);
+    carGroup.add(wheel);
+  });
+
+  player = carGroup;
+  player.position.set(0, 0.5, 0);
   scene.add(player);
 
-  // Adjust camera position and orientation
   camera.position.set(0, 5, 10);
   camera.lookAt(player.position);
 }
 
-// Create the Floor (Racing Track)
+// Floor (Racing Track)
 function createFloor() {
   const geometry = new THREE.PlaneGeometry(20, 100);
   const material = new THREE.MeshBasicMaterial({
@@ -63,10 +126,7 @@ function createFloor() {
   scene.add(floor);
 }
 
-// Handle Player Movement
-let moveLeft = false;
-let moveRight = false;
-
+// Player Movement (Keyboard)
 window.addEventListener("keydown", (event) => {
   if (event.key === "ArrowLeft") moveLeft = true;
   if (event.key === "ArrowRight") moveRight = true;
@@ -77,36 +137,92 @@ window.addEventListener("keyup", (event) => {
   if (event.key === "ArrowRight") moveRight = false;
 });
 
+// Mobile Touch Controls
+function addMobileControls() {
+  const leftButton = document.getElementById("left-button");
+  const rightButton = document.getElementById("right-button");
+
+  leftButton.addEventListener("touchstart", () => (moveLeft = true));
+  leftButton.addEventListener("touchend", () => (moveLeft = false));
+
+  rightButton.addEventListener("touchstart", () => (moveRight = true));
+  rightButton.addEventListener("touchend", () => (moveRight = false));
+}
+
 function movePlayer() {
-  if (moveLeft && player.position.x > -4) player.position.x -= 0.1;
-  if (moveRight && player.position.x < 4) player.position.x += 0.1;
+  if (moveLeft && player.position.x > -4) player.position.x -= 0.15;
+  if (moveRight && player.position.x < 4) player.position.x += 0.15;
 }
 
-// Create Obstacles
 function createObstacle() {
-  const geometry = new THREE.SphereGeometry(0.5, 16, 16);
-  const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-  const obstacle = new THREE.Mesh(geometry, material);
-  obstacle.position.y = 0.5;
-  obstacle.position.x = (Math.random() - 0.5) * 8;
-  obstacle.position.z = -20;
-  scene.add(obstacle);
-  obstacles.push(obstacle);
+  const obstacleGroup = new THREE.Group();
+
+  // Barrier Base
+  const baseGeometry = new THREE.BoxGeometry(2, 0.5, 0.5);
+  const baseMaterial = new THREE.MeshStandardMaterial({ color: 0xffa500 });
+  const base = new THREE.Mesh(baseGeometry, baseMaterial);
+  base.position.y = 0.5;
+  obstacleGroup.add(base);
+
+  // Stripes
+  const stripeGeometry = new THREE.BoxGeometry(2, 0.1, 0.5);
+  const stripeMaterial = new THREE.MeshStandardMaterial({ color: 0x000000 });
+  const stripe1 = new THREE.Mesh(stripeGeometry, stripeMaterial);
+  stripe1.position.set(0, 0.6, 0);
+  obstacleGroup.add(stripe1);
+
+  // Warning Lights
+  const lightGeometry = new THREE.SphereGeometry(0.2, 8, 8);
+  const lightMaterial = new THREE.MeshStandardMaterial({
+    color: 0xff0000,
+    emissive: 0xff0000,
+  });
+  const warningLight1 = new THREE.Mesh(lightGeometry, lightMaterial);
+  const warningLight2 = new THREE.Mesh(lightGeometry, lightMaterial);
+  warningLight1.position.set(-0.8, 0.8, 0);
+  warningLight2.position.set(0.8, 0.8, 0);
+  obstacleGroup.add(warningLight1, warningLight2);
+
+  // Position and Add to Scene
+  obstacleGroup.position.x = (Math.random() - 0.5) * 8;
+  obstacleGroup.position.z = -20;
+  scene.add(obstacleGroup);
+  obstacles.push(obstacleGroup);
 }
 
-// Move Obstacles and Check for Collision
+function updateCollision() {
+  if (!player || obstacles.length === 0) return;
+  player.boundingBox.setFromObject(player);
+
+  for (let i = 0; i < obstacles.length; i++) {
+    let obstacle = obstacles[i];
+
+    if (!obstacle.boundingBox) {
+      obstacle.boundingBox = new THREE.Box3().setFromObject(obstacle);
+    } else {
+      obstacle.boundingBox.setFromObject(obstacle);
+    }
+
+    if (player.boundingBox.intersectsBox(obstacle.boundingBox)) {
+      console.log("Collision Detected!");
+      endGame();
+      return;
+    }
+  }
+}
+
 function moveObstacles() {
   for (let i = obstacles.length - 1; i >= 0; i--) {
     const obstacle = obstacles[i];
-    obstacle.position.z += obstacleSpeed;
 
-    // Check for collision with player
-    if (obstacle.position.distanceTo(player.position) < 1) {
-      endGame();
-      return; // Stop processing after a collision
+    if (!obstacle) continue;
+    obstacle.position.z += obstacleSpeed;
+    if (!obstacle.boundingBox) {
+      obstacle.boundingBox = new THREE.Box3().setFromObject(obstacle);
+    } else {
+      obstacle.boundingBox.setFromObject(obstacle);
     }
 
-    // Remove off-screen obstacles
     if (obstacle.position.z > 10) {
       scene.remove(obstacle);
       obstacles.splice(i, 1);
@@ -114,57 +230,82 @@ function moveObstacles() {
   }
 }
 
-// End Game Function
+function increaseObstacleSpeed() {
+  if (isGameRunning) {
+    obstacleSpeed += 0.04;
+    console.log("Obstacle Speed Increased:", obstacleSpeed);
+  }
+}
+
 function endGame() {
   isGameRunning = false;
   gamePaused = false;
   clearInterval(obstacleInterval);
+  clearInterval(speedIncreaseInterval);
   showGameOverScreen();
 }
 
-// Display Game Over Screen
 function showGameOverScreen() {
   document.getElementById("final-score").textContent = score;
   document.getElementById("game-over-screen").style.display = "block";
   document.getElementById("game-container").style.display = "none";
 }
 
-// Hide Game Over Screen
-function hideGameOverScreen() {
-  document.getElementById("game-over-screen").style.display = "none";
-}
-
-// Restart Game
 function restartGame() {
   hideGameOverScreen();
   resetGame();
   startGame();
 }
 
-// Quit Game to Main Menu
-function quitGame() {
-  hideGameOverScreen();
-  resetGame();
+function hideGameOverScreen() {
+  document.getElementById("game-over-screen").style.display = "none";
+  document.getElementById("game-container").style.display = "block";
 }
 
-// Reset Game State
 function resetGame() {
   obstacles.forEach((obstacle) => scene.remove(obstacle));
   obstacles = [];
-  player.position.set(0, 1, 0);
+  player.position.set(0, 0.5, 0);
+
+  player.boundingBox = new THREE.Box3().setFromObject(player);
   score = 0;
+  obstacleSpeed = 0.1;
   document.getElementById("score").textContent = `Score: ${score}`;
-  document.getElementById("game-container").style.display = "none";
-  document.getElementById("home-screen").style.display = "block";
 }
 
-// Animation Loop
+function pauseGame() {
+  if (isGameRunning) {
+    gamePaused = true;
+    clearInterval(obstacleInterval);
+    clearInterval(speedIncreaseInterval);
+    document.getElementById("pause-game").style.display = "none";
+    document.getElementById("resume-game").style.display = "block";
+  }
+}
+
+function resumeGame() {
+  if (isGameRunning) {
+    gamePaused = false;
+    document.getElementById("resume-game").style.display = "none";
+    document.getElementById("pause-game").style.display = "block";
+
+    obstacleInterval = setInterval(() => {
+      if (isGameRunning && !gamePaused) createObstacle();
+    }, 1000);
+
+    speedIncreaseInterval = setInterval(() => {
+      if (isGameRunning && !gamePaused) increaseObstacleSpeed();
+    }, 5000);
+  }
+}
+
 function animate() {
   requestAnimationFrame(animate);
 
   if (isGameRunning && !gamePaused) {
     movePlayer();
     moveObstacles();
+    updateCollision();
     score++;
     document.getElementById("score").textContent = `Score: ${score}`;
   }
@@ -172,49 +313,72 @@ function animate() {
   renderer.render(scene, camera);
 }
 
-// Start Game Function
-function startGame() {
-  document.getElementById("home-screen").style.display = "none";
-  document.getElementById("game-container").style.display = "block";
-  score = 0;
-  document.getElementById("score").textContent = `Score: ${score}`;
-  isGameRunning = true;
+function quitGame() {
+  isGameRunning = false;
   gamePaused = false;
 
   clearInterval(obstacleInterval);
+  clearInterval(speedIncreaseInterval);
+
+  document.getElementById("game-over-screen").style.display = "none";
+  document.getElementById("game-container").style.display = "none";
+
+  // ✅ **Properly reset the game state**
+  resetGame();
+
+  document.getElementById("home-screen").style.display = "block";
+}
+
+function startGame() {
+  document.getElementById("home-screen").style.display = "none";
+  document.getElementById("game-container").style.display = "block";
+
+  score = 0;
+  document.getElementById("score").textContent = `Score: ${score}`;
+
+  isGameRunning = true;
+  gamePaused = false;
+  obstacleSpeed = 0.1;
+
+  clearInterval(obstacleInterval);
+  clearInterval(speedIncreaseInterval);
+
+  // ✅ **Ensure player's bounding box resets correctly**
+  player.boundingBox = new THREE.Box3().setFromObject(player);
+
+  // ✅ **Ensure obstacles reset properly**
+  obstacles.forEach((obstacle) => {
+    if (obstacle.boundingBox) {
+      obstacle.boundingBox.setFromObject(obstacle);
+    }
+  });
+
+  // Create obstacles at intervals
   obstacleInterval = setInterval(() => {
     if (isGameRunning && !gamePaused) {
       createObstacle();
     }
   }, 1000);
+
+  // Increase speed every 5 seconds
+  speedIncreaseInterval = setInterval(() => {
+    increaseObstacleSpeed();
+  }, 5000);
 }
 
-// Pause and Resume Functionality
-function pauseGame() {
-  gamePaused = true;
-  document.getElementById("pause-game").style.display = "none";
-  document.getElementById("resume-game").style.display = "block";
-}
-
-function resumeGame() {
-  gamePaused = false;
-  document.getElementById("resume-game").style.display = "none";
-  document.getElementById("pause-game").style.display = "block";
-}
-
-// Update obstacle speed based on input
-document.getElementById("obstacle-speed").addEventListener("input", (event) => {
-  obstacleSpeed = parseFloat(event.target.value);
-});
-
-// Event listeners for game controls
+document.getElementById("pause-game").addEventListener("click", pauseGame);
+document.getElementById("resume-game").addEventListener("click", resumeGame);
 document.getElementById("start-button").addEventListener("click", startGame);
 document
   .getElementById("restart-button")
   .addEventListener("click", restartGame);
 document.getElementById("quit-button").addEventListener("click", quitGame);
-document.getElementById("pause-game").addEventListener("click", pauseGame);
-document.getElementById("resume-game").addEventListener("click", resumeGame);
 
 // Initialize the game
 init();
+
+window.addEventListener("resize", () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
