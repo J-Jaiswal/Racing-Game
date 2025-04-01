@@ -1,5 +1,4 @@
-/* Reset some default styles */
-* {
+Reset some default styles * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
@@ -210,4 +209,26 @@ button:active {
   border: none;
   border-radius: 10px;
   cursor: pointer;
+}
+
+body,
+html {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: #2e2e2e;
+}
+
+#game-container {
+  width: 100vw;
+  height: 100vh;
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+}
+
+canvas {
+  display: block;
 }
