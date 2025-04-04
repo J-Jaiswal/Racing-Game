@@ -4,6 +4,7 @@ import * as THREE from "https://unpkg.com/three@0.136.0/build/three.module.js";
 
 const carMovingSound = new Audio("../sounds/Background.mp3");
 const collisionSound = new Audio("../sounds/Gameover.mp3");
+const button = new Audio("../sounds/button.mp3");
 
 carMovingSound.loop = true;
 
@@ -122,8 +123,14 @@ function createFloor() {
 }
 
 window.addEventListener("keydown", (event) => {
-  if (event.key === "ArrowLeft") moveLeft = true;
-  if (event.key === "ArrowRight") moveRight = true;
+  if (event.key === "ArrowLeft") {
+    button.play();
+    moveLeft = true;
+  }
+  if (event.key === "ArrowRight") {
+    button.play();
+    moveRight = true;
+  }
 });
 
 window.addEventListener("keyup", (event) => {
@@ -135,10 +142,16 @@ function addMobileControls() {
   const leftButton = document.getElementById("left-button");
   const rightButton = document.getElementById("right-button");
 
-  leftButton.addEventListener("touchstart", () => (moveLeft = true));
+  leftButton.addEventListener("touchstart", () => {
+    button.play();
+    moveLeft = true;
+  });
   leftButton.addEventListener("touchend", () => (moveLeft = false));
 
-  rightButton.addEventListener("touchstart", () => (moveRight = true));
+  rightButton.addEventListener("touchstart", () => {
+    button.play();
+    moveRight = true;
+  });
   rightButton.addEventListener("touchend", () => (moveRight = false));
 }
 
